@@ -1,0 +1,254 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Role {
+  id          Int      @id @default(autoincrement()) @map("role_id")
+  roleName    String   @unique @map("role_name")
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  users       User[]
+
+  @@map("roles")
+}
+
+model User {
+  id           Int       @id @default(autoincrement()) @map("user_id")
+  fullName     String    @map("full_name")
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  phone        String?
+  isActive     Boolean   @default(true) @map("is_active")
+  roleId       Int?      @map("role_id")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  role         Role?     @relation(fields: [roleId], references: [id])
+  reservations Reservation[]
+  telegramConversations TelegramConversation[]
+
+  @@map("users")
+}
+
+model Floor {
+  id          Int      @id @default(autoincrement()) @map("floor_id")
+  floorNumber Int      @unique @map("floor_number")
+  floorName   String?  @map("floor_name")
+  createdAt   DateTime @default(now()) @map("created_at")
+  zones       Zone[]
+
+  @@map("floors")
+}
+
+model Zone {
+  id                Int                 @id @default(autoincrement()) @map("zone_id")
+  floorId           Int?                @map("floor_id")
+  zoneName          String              @map("zone_name")
+  zoneType          String?             @map("zone_type")
+  description       String?
+  idealTemperature  Float?              @map("ideal_temperature")
+  capacity          Int?
+  createdAt         DateTime            @default(now()) @map("created_at")
+  floor             Floor?              @relation(fields: [floorId], references: [id])
+  availability      ZoneAvailability[]
+  scheduledClasses  ScheduledClass[]
+  reservations      Reservation[]
+  devices           Device[]
+  actuators         Actuator[]
+  automationRules   AutomationRule[]
+
+  @@map("zones")
+}
+
+model ZoneAvailability {
+  id        Int       @id @default(autoincrement()) @map("availability_id")
+  zoneId    Int       @map("zone_id")
+  dayOfWeek String?   @map("day_of_week")
+  startTime DateTime? @map("start_time") @db.Time
+  endTime   DateTime? @map("end_time") @db.Time
+  zone      Zone      @relation(fields: [zoneId], references: [id])
+
+  @@map("zone_availability")
+}
+
+model ScheduledClass {
+  id         Int       @id @default(autoincrement()) @map("class_id")
+  zoneId     Int       @map("zone_id")
+  teacherName String?  @map("teacher_name")
+  groupName  String?   @map("group_name")
+  startTime  DateTime? @map("start_time")
+  endTime    DateTime? @map("end_time")
+  zone       Zone      @relation(fields: [zoneId], references: [id])
+
+  @@map("scheduled_classes")
+}
+
+model Reservation {
+  id                 Int       @id @default(autoincrement()) @map("reservation_id")
+  userId             Int?      @map("user_id")
+  zoneId             Int       @map("zone_id")
+  startDatetime      DateTime  @map("start_datetime")
+  endDatetime        DateTime  @map("end_datetime")
+  status             String    @default("pending")
+  reservationChannel String    @default("web") @map("reservation_channel")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  user               User?     @relation(fields: [userId], references: [id])
+  zone               Zone      @relation(fields: [zoneId], references: [id])
+
+  @@map("reservations")
+}
+
+model Device {
+  id               String     @id @default(uuid()) @map("device_id") @db.Uuid
+  zoneId           Int?       @map("zone_id")
+  deviceName       String     @map("device_name")
+  deviceType       String?    @map("device_type")
+  chipId           String?    @unique @map("chip_id")
+  macAddress       String?    @map("mac_address")
+  firmwareVersion  String?    @map("firmware_version")
+  isOnline         Boolean    @default(false) @map("is_online")
+  mqttTopic        String?    @map("mqtt_topic")
+  createdAt        DateTime   @default(now()) @map("created_at")
+  zone             Zone?      @relation(fields: [zoneId], references: [id])
+  sensors          Sensor[]
+  actuators        Actuator[]
+  commands         IoTCommand[]
+
+  @@map("devices")
+}
+
+model Sensor {
+  id          Int         @id @default(autoincrement()) @map("sensor_id")
+  deviceId    String?     @map("device_id") @db.Uuid
+  sensorType  String      @map("sensor_type")
+  unit        String?
+  description String?
+  device      Device?     @relation(fields: [deviceId], references: [id])
+  telemetry   Telemetry[]
+
+  @@map("sensors")
+}
+
+model Telemetry {
+  id        BigInt    @id @default(autoincrement()) @map("reading_id")
+  sensorId  Int?      @map("sensor_id")
+  value     Float     @map("value") @db.DoublePrecision
+  timestamp DateTime  @default(now()) @map("timestamp")
+  sensor    Sensor?   @relation(fields: [sensorId], references: [id])
+
+  @@map("telemetry")
+}
+
+model Actuator {
+  id                 Int            @id @default(autoincrement()) @map("actuator_id")
+  deviceId           String?        @map("device_id") @db.Uuid
+  zoneId             Int?           @map("zone_id")
+  actuatorType       String         @map("actuator_type")
+  channel            Int
+  supportsIntensity  Boolean        @default(false) @map("supports_intensity")
+  supportsSpeed      Boolean        @default(false) @map("supports_speed")
+  supportsFanLight   Boolean        @default(false) @map("supports_fan_light")
+  description        String?
+  device             Device?        @relation(fields: [deviceId], references: [id])
+  zone               Zone?          @relation(fields: [zoneId], references: [id])
+  states             ActuatorState[]
+  commands           IoTCommand[]
+
+  @@map("actuators")
+}
+
+model ActuatorState {
+  id        BigInt   @id @default(autoincrement()) @map("state_id")
+  actuatorId Int      @map("actuator_id")
+  state     String
+  speed     Int?
+  intensity Int?
+  timestamp DateTime  @default(now()) @map("timestamp")
+  actuator  Actuator  @relation(fields: [actuatorId], references: [id])
+
+  @@map("actuator_states")
+}
+
+model IoTCommand {
+  id               BigInt    @id @default(autoincrement()) @map("command_id")
+  deviceId         String?   @map("device_id") @db.Uuid
+  actuatorId       Int?      @map("actuator_id")
+  command          String
+  value            String?
+  sentTimestamp    DateTime  @default(now()) @map("sent_timestamp")
+  responseTimestamp DateTime? @map("response_timestamp")
+  success          Boolean?
+  device           Device?   @relation(fields: [deviceId], references: [id])
+  actuator         Actuator? @relation(fields: [actuatorId], references: [id])
+
+  @@map("iot_commands")
+}
+
+model AutomationRule {
+  id          Int              @id @default(autoincrement()) @map("rule_id")
+  zoneId      Int?             @map("zone_id")
+  ruleType    String           @map("rule_type")
+  condition   String
+  action      String
+  parameters  Json?
+  isActive    Boolean          @default(true) @map("is_active")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  zone        Zone?            @relation(fields: [zoneId], references: [id])
+  logs        AutomationLog[]
+
+  @@map("automation_rules")
+}
+
+model AutomationLog {
+  id        BigInt          @id @default(autoincrement()) @map("log_id")
+  ruleId    Int?            @map("rule_id")
+  timestamp DateTime        @default(now()) @map("timestamp")
+  message   String?
+  rule      AutomationRule? @relation(fields: [ruleId], references: [id])
+
+  @@map("automation_logs")
+}
+
+model TelegramConversation {
+  id                 Int                   @id @default(autoincrement()) @map("conversation_id")
+  telegramChatId     BigInt                @unique @map("telegram_chat_id")
+  telegramUsername   String?               @map("telegram_username")
+  telegramFirstName  String?               @map("telegram_first_name")
+  telegramLastName   String?               @map("telegram_last_name")
+  userId             Int?                  @map("user_id")
+  status             String                @default("active")
+  createdAt          DateTime              @default(now()) @map("created_at")
+  updatedAt          DateTime              @default(now()) @map("updated_at")
+  user               User?                 @relation(fields: [userId], references: [id])
+  messages           TelegramMessage[]
+  context            TelegramContext?
+
+  @@map("telegram_conversations")
+}
+
+model TelegramMessage {
+  id                BigInt               @id @default(autoincrement()) @map("message_id")
+  conversationId    Int                  @map("conversation_id")
+  telegramMessageId BigInt?              @map("telegram_message_id")
+  sender            String               @map("sender")
+  content           String               @map("content")
+  createdAt         DateTime             @default(now()) @map("created_at")
+  conversation      TelegramConversation @relation(fields: [conversationId], references: [id])
+
+  @@map("telegram_messages")
+}
+
+model TelegramContext {
+  id             Int                  @id @default(autoincrement()) @map("context_id")
+  conversationId Int                  @unique @map("conversation_id")
+  activeFlow     String?              @map("active_flow")
+  currentStep    String?              @map("current_step")
+  tempData       Json?                @default("{}") @map("temp_data")
+  lastActivity   DateTime             @default(now()) @map("last_activity")
+  conversation   TelegramConversation @relation(fields: [conversationId], references: [id])
+
+  @@map("telegram_context")
+}
