@@ -1,10 +1,13 @@
-import type { AuthOptions, Session } from "next-auth/core/types";
+import NextAuth from "next-auth/next";
+import type { Session } from "next-auth";
 import type { JWT } from "next-auth/jwt";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 
 type ExtendedToken = JWT & { id?: string; role?: string | null };
+
+type AuthOptions = Parameters<typeof NextAuth>[0];
 
 export const authOptions: AuthOptions = {
   session: {
