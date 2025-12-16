@@ -5,6 +5,23 @@ import { error, ok, readJson } from "@/lib/http";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": process.env.CORS_ORIGIN ?? "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+const withCors = (response: Response) => {
+  Object.entries(corsHeaders).forEach(([key, value]) =>
+    response.headers.set(key, value),
+  );
+  return response;
+};
+
+export async function OPTIONS() {
+  return withCors(new Response(null, { status: 204 }));
+}
+
 export async function POST(request: Request) {
   try {
     const body = await readJson<{
@@ -20,11 +37,11 @@ export async function POST(request: Request) {
     const password = body.password ?? "";
 
     if (!fullName || !email || !password) {
-      return error("fullName, email and password are required", 400);
+      return withCors(error("fullName, email and password are required", 400));
     }
 
     const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) return error("User already exists", 409);
+    if (existing) return withCors(error("User already exists", 409));
 
     const passwordHash = await bcrypt.hash(password, 10);
 
@@ -40,17 +57,19 @@ export async function POST(request: Request) {
       include: { role: true },
     });
 
-    return ok(
-      {
-        id: user.id,
-        fullName: user.fullName,
-        email: user.email,
-        role: user.role?.roleName ?? null,
-      },
-      { status: 201 },
+    return withCors(
+      ok(
+        {
+          id: user.id,
+          fullName: user.fullName,
+          email: user.email,
+          role: user.role?.roleName ?? null,
+        },
+        { status: 201 },
+      ),
     );
   } catch (err) {
     console.error("POST /api/auth/register", err);
-    return error("Failed to register user", 500);
+    return withCors(error("Failed to register user", 500));
   }
 }
