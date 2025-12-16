@@ -61,14 +61,14 @@ Backend endpoints exposed by the Next.js App Router. All routes are Node runtime
   - GET/POST `/api/telegram/context/:conversationId` (`POST` `{ activeFlow?, currentStep?, tempData? }`)
 - Mongo (Data Lake)
   - GET/POST `/api/mongo/telemetry`
-    - Filters: `dispositivo_id`, `zona`, `tipo_sensor`, `from`, `to`, `limit`
-    - Body: `{ metadata:{dispositivo_id, zona?, tipo_sensor?}, valor:number, unidad?, timestamp?, n8n_execution_id? }`
+    - Filters: `deviceId`, `zone`, `sensorType`, `from`, `to`, `limit`
+    - Body: `{ metadata:{deviceId, zone?, sensorType?}, value:number, unit?, timestamp?, n8nExecutionId? }`
   - GET/POST `/api/mongo/logs`
-    - Filters: `evento`, `zona_afectada`, `estado`, `from`, `to`, `limit`
-    - Body: `{ evento, zona_afectada?, detalles?, fecha?, estado? }`
+    - Filters: `event`, `affectedZone`, `status`, `from`, `to`, `limit`
+    - Body: `{ event, affectedZone?, details?, date?, status? }`
   - GET/POST `/api/mongo/reports`
-    - Filters: `tipo`, `periodo`, `zona_id`, `limit`
-    - Body: `{ tipo, periodo?, zona_id?, resumen?, data_points?, creado_en? }`
+    - Filters: `type`, `period`, `zoneId`, `limit`
+    - Body: `{ type, period?, zoneId?, summary?, dataPoints?, createdAt? }`
 
 ## Auth
 - Sign in (credentials, NextAuth client):
@@ -157,16 +157,16 @@ const { data: latest } = await axios.get("/api/telemetry/latest", {
 
 // Mongo telemetry raw
 const { data: raw } = await axios.get("/api/mongo/telemetry", {
-  params: { dispositivo_id: "arduino_giga_01", limit: 100 },
+  params: { deviceId: "arduino_giga_01", limit: 100 },
 });
 
 // Mongo logs insert
 await axios.post("/api/mongo/logs", {
-  evento: "apagado_automatico",
-  zona_afectada: "coworking_piso2",
-  detalles: { motivo: "sin presencia", accion_ejecutada: "MQTT PUBLISH OFF" },
-  fecha: new Date().toISOString(),
-  estado: "exito",
+  event: "auto_shutdown",
+  affectedZone: "coworking_floor2",
+  details: { reason: "no presence", executedAction: "MQTT PUBLISH OFF" },
+  date: new Date().toISOString(),
+  status: "success",
 });
 ```
 

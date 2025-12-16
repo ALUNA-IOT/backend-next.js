@@ -1,32 +1,32 @@
 import { NextRequest } from "next/server";
 import { getMongoDb } from "@/lib/mongo";
 import { error, ok, parseIntParam } from "@/lib/http";
-import type { ReporteGenerado } from "@/types/mongo";
+import type { GeneratedReport } from "@/types/mongo";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const collectionName = "reportes_generados";
+const collectionName = "generated_reports";
 
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
-    const tipo = url.searchParams.get("tipo") ?? undefined;
-    const periodo = url.searchParams.get("periodo") ?? undefined;
-    const zonaId = parseIntParam(url.searchParams.get("zona_id"));
+    const type = url.searchParams.get("type") ?? undefined;
+    const period = url.searchParams.get("period") ?? undefined;
+    const zoneId = parseIntParam(url.searchParams.get("zoneId"));
     const limit = parseIntParam(url.searchParams.get("limit")) ?? 100;
     const safeLimit = Math.max(1, Math.min(limit, 500));
 
     const filter: Record<string, unknown> = {};
-    if (tipo) filter.tipo = tipo;
-    if (periodo) filter.periodo = periodo;
-    if (zonaId !== null) filter.zona_id = zonaId;
+    if (type) filter.type = type;
+    if (period) filter.period = period;
+    if (zoneId !== null) filter.zoneId = zoneId;
 
     const db = await getMongoDb();
     const docs = await db
-      .collection<ReporteGenerado>(collectionName)
+      .collection<GeneratedReport>(collectionName)
       .find(filter)
-      .sort({ creado_en: -1 })
+      .sort({ createdAt: -1 })
       .limit(safeLimit)
       .toArray();
 
@@ -39,22 +39,22 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as ReporteGenerado;
-    if (!body?.tipo) return error("tipo is required", 400);
+    const body = (await request.json()) as GeneratedReport;
+    if (!body?.type) return error("type is required", 400);
 
-    const creado_en = body.creado_en ? new Date(body.creado_en) : new Date();
-    if (Number.isNaN(creado_en.getTime())) {
-      return error("creado_en is invalid", 400);
+    const createdAt = body.createdAt ? new Date(body.createdAt) : new Date();
+    if (Number.isNaN(createdAt.getTime())) {
+      return error("createdAt is invalid", 400);
     }
 
-    const doc: ReporteGenerado = {
+    const doc: GeneratedReport = {
       ...body,
-      creado_en,
+      createdAt,
     };
 
     const db = await getMongoDb();
     const result = await db
-      .collection<ReporteGenerado>(collectionName)
+      .collection<GeneratedReport>(collectionName)
       .insertOne(doc);
 
     return ok({ insertedId: result.insertedId }, { status: 201 });

@@ -1,31 +1,31 @@
-export interface TelemetriaRaw {
+export interface RawTelemetry {
   _id?: unknown;
   metadata: {
-    dispositivo_id: string;
-    zona?: string;
-    tipo_sensor?: string;
+    deviceId: string;
+    zone?: string;
+    sensorType?: string;
   };
-  valor: number;
-  unidad?: string;
+  value: number;
+  unit?: string;
   timestamp: string | Date;
-  n8n_execution_id?: string;
+  n8nExecutionId?: string;
 }
 
-export interface LogAutomatizacion {
+export interface AutomationLog {
   _id?: unknown;
-  evento: string;
-  zona_afectada?: string;
-  detalles?: Record<string, unknown>;
-  fecha: string | Date;
-  estado?: string;
+  event: string;
+  affectedZone?: string;
+  details?: Record<string, unknown>;
+  date: string | Date;
+  status?: string;
 }
 
-export interface ReporteGenerado {
+export interface GeneratedReport {
   _id?: unknown;
-  tipo: string;
-  periodo?: string;
-  zona_id?: number;
-  resumen?: Record<string, unknown>;
-  data_points?: unknown[];
-  creado_en?: string | Date;
+  type: string;
+  period?: string;
+  zoneId?: number;
+  summary?: Record<string, unknown>;
+  dataPoints?: unknown[];
+  createdAt?: string | Date;
 }

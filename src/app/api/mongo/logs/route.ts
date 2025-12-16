@@ -1,12 +1,12 @@
 import { NextRequest } from "next/server";
 import { getMongoDb } from "@/lib/mongo";
 import { error, ok, parseIntParam } from "@/lib/http";
-import type { LogAutomatizacion } from "@/types/mongo";
+import type { AutomationLog } from "@/types/mongo";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const collectionName = "logs_automatizacion";
+const collectionName = "automation_logs";
 
 const parseDate = (value?: string | null): Date | null => {
   if (!value) return null;
@@ -17,29 +17,29 @@ const parseDate = (value?: string | null): Date | null => {
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
-    const evento = url.searchParams.get("evento") ?? undefined;
-    const zona = url.searchParams.get("zona_afectada") ?? undefined;
-    const estado = url.searchParams.get("estado") ?? undefined;
+    const event = url.searchParams.get("event") ?? undefined;
+    const affectedZone = url.searchParams.get("affectedZone") ?? undefined;
+    const status = url.searchParams.get("status") ?? undefined;
     const from = parseDate(url.searchParams.get("from"));
     const to = parseDate(url.searchParams.get("to"));
     const limit = parseIntParam(url.searchParams.get("limit")) ?? 200;
     const safeLimit = Math.max(1, Math.min(limit, 2000));
 
     const filter: Record<string, unknown> = {};
-    if (evento) filter.evento = evento;
-    if (zona) filter.zona_afectada = zona;
-    if (estado) filter.estado = estado;
+    if (event) filter.event = event;
+    if (affectedZone) filter.affectedZone = affectedZone;
+    if (status) filter.status = status;
     if (from || to) {
-      filter.fecha = {};
-      if (from) filter.fecha.$gte = from;
-      if (to) filter.fecha.$lte = to;
+      filter.date = {};
+      if (from) filter.date.$gte = from;
+      if (to) filter.date.$lte = to;
     }
 
     const db = await getMongoDb();
     const docs = await db
-      .collection<LogAutomatizacion>(collectionName)
+      .collection<AutomationLog>(collectionName)
       .find(filter)
-      .sort({ fecha: -1 })
+      .sort({ date: -1 })
       .limit(safeLimit)
       .toArray();
 
@@ -52,22 +52,22 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as LogAutomatizacion;
-    if (!body?.evento) {
-      return error("evento is required", 400);
+    const body = (await request.json()) as AutomationLog;
+    if (!body?.event) {
+      return error("event is required", 400);
     }
-    const fecha = body.fecha ? new Date(body.fecha) : new Date();
-    if (Number.isNaN(fecha.getTime())) {
-      return error("fecha is invalid", 400);
+    const date = body.date ? new Date(body.date) : new Date();
+    if (Number.isNaN(date.getTime())) {
+      return error("date is invalid", 400);
     }
 
-    const doc: LogAutomatizacion = {
+    const doc: AutomationLog = {
       ...body,
-      fecha,
+      date,
     };
 
     const db = await getMongoDb();
-    const result = await db.collection<LogAutomatizacion>(collectionName).insertOne(doc);
+    const result = await db.collection<AutomationLog>(collectionName).insertOne(doc);
     return ok({ insertedId: result.insertedId }, { status: 201 });
   } catch (err) {
     console.error("POST /api/mongo/logs", err);
