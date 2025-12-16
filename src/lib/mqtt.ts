@@ -5,7 +5,7 @@
  * - MQTT_URL, MQTT_USERNAME, MQTT_PASSWORD, MQTT_CLIENT_ID, MQTT_QOS
  * - MQTT_TELEMETRY_TOPIC (default: aluna/telemetry)
  * - MQTT_ACK_TOPIC (default: aluna/devices/+/ack)
- * - MQTT_COMMAND_TOPIC_TEMPLATE (default: aluna/devices/<deviceId>/cmd)
+ * - MQTT_COMMAND_TOPIC_TEMPLATE (default: aluna/commands/<deviceId>/<channel>)
  * - FAN_TEMP_ON (28), FAN_TEMP_OFF (26), FAN_HUM_ON (70), FAN_HUM_OFF (65)
  *
  * Quick test:
@@ -45,7 +45,9 @@ const ACK_TOPIC_PATTERN =
   process.env.MQTT_ACK_TOPIC ?? "aluna/devices/+/ack";
 const COMMAND_TOPIC_TEMPLATE =
   process.env.MQTT_COMMAND_TOPIC_TEMPLATE ??
-  "aluna/devices/<deviceId>/cmd";
+  "aluna/commands/<deviceId>/<channel>";
+const MQTT_CLEAN_SESSION =
+  process.env.MQTT_CLEAN_SESSION === "false" ? false : true;
 
 const FAN_TEMP_ON = getNumberEnv("FAN_TEMP_ON", 28);
 const FAN_TEMP_OFF = getNumberEnv("FAN_TEMP_OFF", 26);
@@ -100,7 +102,8 @@ function buildTopicRegex(pattern: string): RegExp {
   return new RegExp(`^${withWildcards}$`);
 }
 
-const ackTopicRegex = buildTopicRegex(ACK_TOPIC_PATTERN);
+const ackSubscribeTopic = ACK_TOPIC_PATTERN.replace("<deviceId>", "+");
+const ackTopicRegex = buildTopicRegex(ackSubscribeTopic);
 
 type QoS = 0 | 1 | 2;
 
@@ -275,7 +278,7 @@ const createMqttClient = (): MqttClient => {
     username,
     password,
     reconnectPeriod: 5000,
-    clean: true,
+    clean: MQTT_CLEAN_SESSION,
     protocolVersion: 5,
   };
 
@@ -286,7 +289,7 @@ const createMqttClient = (): MqttClient => {
     debugLog("Subscribing to topics", TELEMETRY_TOPIC, ACK_TOPIC_PATTERN);
 
     client.subscribe(
-      [TELEMETRY_TOPIC, ACK_TOPIC_PATTERN],
+      [TELEMETRY_TOPIC, ackSubscribeTopic],
       { qos },
       (error, granted) => {
         if (error) {
@@ -351,6 +354,17 @@ export const onAck = (listener: AckListener): (() => void) => {
   return () => ackListeners.delete(listener);
 };
 
+const channelFromType = (type: CommandType): string => {
+  switch (type) {
+    case "LIGHT_SET":
+      return "light";
+    case "FAN_SET":
+      return "fan";
+    default:
+      return String(type).toLowerCase();
+  }
+};
+
 export const publishCommand = async (
   deviceId: string,
   type: CommandType,
@@ -362,7 +376,11 @@ export const publishCommand = async (
     throw new Error("MQTT_URL env var is required to publish MQTT commands");
   }
   const qos = getQoS();
-  const topic = COMMAND_TOPIC_TEMPLATE.replace("<deviceId>", deviceId);
+  const channel = channelFromType(type);
+  const topic = COMMAND_TOPIC_TEMPLATE.replace("<deviceId>", deviceId).replace(
+    "<channel>",
+    channel,
+  );
 
   const requestId = randomUUID();
   const payload: CommandPayload = {

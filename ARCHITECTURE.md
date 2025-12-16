@@ -2,25 +2,29 @@
 
 ## 1) Overview
 Single-instance Next.js backend (App Router, Node runtime) for IoT monitoring and automation across Riwi floors (classrooms, coworking, offices). It orchestrates MQTT telemetry/commands, relational data in PostgreSQL, a MongoDB data lake for heavy telemetry/logging, automation rules, and REST APIs for the frontend/reporting.
+- Infra: Hostinger VPS (Ubuntu 24.04) at IPv4 72.62.14.129 / IPv6 2a02:4780:66:d5af::1. SSH `root@72.62.14.129` port 22 for admin/deploys; not directly used by frontend or devices.
+- DNS: root domain `ingeniot.com.co`; MQTT broker at `mqtt.ingeniot.com.co` (A -> 72.62.14.129, AAAA -> 2a02:4780:66:d5af::1).
 
 ## 2) Data stores
 - **PostgreSQL (Prisma)**: critical relational data (users/roles, floors/zones, availability/schedule/reservations, devices/sensors/point telemetry, actuators/states, IoT commands, automation rules/logs, Telegram conversations/messages/context).
 - **MongoDB (data lake)**: high-volume raw telemetry, automation logs, generated reports (optimized for writes and aggregations).
 
 ## 3) External services
-- **MQTT broker**: `mqtt://100.67.166.33:1883` (user `aluna`, password `Aluna2025.`, clientId `aluna-backend`).
+- **MQTT broker**: `mqtt://mqtt.ingeniot.com.co:1883` (A 72.62.14.129, AAAA 2a02:4780:66:d5af::1; user `aluna`, password `Aluna2025.`, clientId `aluna-backend`; used by backend + ESP32, frontend does not connect directly).
 - **n8n (expected, outside this repo)**: consumes MQTT telemetry and inserts into MongoDB collections (`telemetry_raw`, `automation_logs`, `generated_reports`); can also publish MQTT commands.
 
 ## 4) Main flows
 ### Telemetry & commands (MQTT)
 - Devices publish to `MQTT_TELEMETRY_TOPIC` (default `aluna/telemetry`).
+- Commands base topic: `aluna/commands/<deviceId>/<channel>` (examples: `aluna/commands/nano-esp32-01/relay`, `.../fan`, `.../light`).
+- Ack/state topic: `aluna/devices/<deviceId>/ack` (e.g., `aluna/devices/nano-esp32-01/ack`).
 - MQTT client (`src/lib/mqtt.ts`):
   - Maintains in-memory snapshot for `/api/iot/state` and SSE `/api/iot/stream` (events `telemetry`, `ack`).
   - Applies fan rule (temp/humidity thresholds).
   - Publishes commands via HTTP -> MQTT:
     - POST `/api/devices/:deviceId/lights` -> `LIGHT_SET`
     - POST `/api/devices/:deviceId/fans` -> `FAN_SET` (optional speed)
-  - Acks on `MQTT_ACK_TOPIC` update pending/ack state in memory.
+  - Acks on `MQTT_ACK_TOPIC` (`aluna/devices/<deviceId>/ack`) update pending/ack state in memory.
 
 ### Relational (PostgreSQL)
 - CRUD/query via REST: roles, users, floors/zones (availability/schedule/reservations), devices, sensors, point telemetry, actuators/state, commands log, automation rules/logs, Telegram artifacts.
