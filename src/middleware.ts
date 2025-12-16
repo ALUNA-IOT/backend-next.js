@@ -9,15 +9,16 @@ const ALLOWED_ORIGINS = (process.env.CORS_ORIGIN ?? "*")
 const DEFAULT_HEADERS = "Content-Type, Authorization";
 const DEFAULT_METHODS = "GET,POST,PUT,PATCH,DELETE,OPTIONS";
 
-const resolveOrigin = (origin: string | null): { value: string; credentials: boolean } => {
-  if (!origin) return { value: "*", credentials: false };
+const resolveOrigin = (
+  origin: string | null,
+): { value: string; credentials: boolean } => {
+  // Permissive: refleja el origin si existe; si no, usa * o el primero definido
+  if (origin) {
+    return { value: origin, credentials: true };
+  }
   if (ALLOWED_ORIGINS.includes("*")) {
-    return { value: origin, credentials: true };
+    return { value: "*", credentials: false };
   }
-  if (ALLOWED_ORIGINS.includes(origin)) {
-    return { value: origin, credentials: true };
-  }
-  // Fallback to first allowed origin if defined
   const fallback = ALLOWED_ORIGINS[0] ?? "*";
   return { value: fallback, credentials: fallback !== "*" };
 };
