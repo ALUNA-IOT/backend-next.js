@@ -8,6 +8,7 @@ Backend endpoints exposed by the Next.js App Router. All routes are Node runtime
 - Actuators/Commands: actuators belong to devices/zones. Commands are intent; actuator states are observed state.
 - Automation: rules + logs per zone.
 - Telegram: conversations/messages/context for chatbot flows.
+- Data Lake (MongoDB): raw telemetry, automation logs, generated reports for heavy reads/aggregations.
 - Auth: NextAuth credentials (email/password), JWT sessions.
 
 ## Quick Reference (URLs & payloads)
@@ -58,6 +59,16 @@ Backend endpoints exposed by the Next.js App Router. All routes are Node runtime
   - GET/POST `/api/telegram/conversations` (`POST` `{ telegramChatId, telegramUsername?, telegramFirstName?, telegramLastName?, userId?, status? }`)
   - GET/POST `/api/telegram/messages` (`POST` `{ conversationId, telegramMessageId?, sender, content }`)
   - GET/POST `/api/telegram/context/:conversationId` (`POST` `{ activeFlow?, currentStep?, tempData? }`)
+- Mongo (Data Lake)
+  - GET/POST `/api/mongo/telemetry`
+    - Filters: `dispositivo_id`, `zona`, `tipo_sensor`, `from`, `to`, `limit`
+    - Body: `{ metadata:{dispositivo_id, zona?, tipo_sensor?}, valor:number, unidad?, timestamp?, n8n_execution_id? }`
+  - GET/POST `/api/mongo/logs`
+    - Filters: `evento`, `zona_afectada`, `estado`, `from`, `to`, `limit`
+    - Body: `{ evento, zona_afectada?, detalles?, fecha?, estado? }`
+  - GET/POST `/api/mongo/reports`
+    - Filters: `tipo`, `periodo`, `zona_id`, `limit`
+    - Body: `{ tipo, periodo?, zona_id?, resumen?, data_points?, creado_en? }`
 
 ## Auth
 - Sign in (credentials, NextAuth client):
@@ -143,9 +154,24 @@ await axios.post(`/api/zones/${zoneId}/reservations`, {
 const { data: latest } = await axios.get("/api/telemetry/latest", {
   params: { deviceId: "uuid-or-chip" },
 });
+
+// Mongo telemetry raw
+const { data: raw } = await axios.get("/api/mongo/telemetry", {
+  params: { dispositivo_id: "arduino_giga_01", limit: 100 },
+});
+
+// Mongo logs insert
+await axios.post("/api/mongo/logs", {
+  evento: "apagado_automatico",
+  zona_afectada: "coworking_piso2",
+  detalles: { motivo: "sin presencia", accion_ejecutada: "MQTT PUBLISH OFF" },
+  fecha: new Date().toISOString(),
+  estado: "exito",
+});
 ```
 
 ## Env Vars (auth/MQTT/DB)
 - Auth: `NEXTAUTH_SECRET` (required), `NEXTAUTH_URL` (prod).
 - MQTT: `MQTT_URL`, `MQTT_USERNAME`, `MQTT_PASSWORD`, `MQTT_CLIENT_ID`, `MQTT_QOS`, telemetry/ack/command topics, fan thresholds.
-- DB: `DATABASE_URL` (PostgreSQL).
+- SQL DB: `DATABASE_URL` (PostgreSQL).
+- Mongo DB: `MONGODB_URL` (o `MONGODB_URI`), opcional `MONGODB_DB` (default `aluna_iot`).
