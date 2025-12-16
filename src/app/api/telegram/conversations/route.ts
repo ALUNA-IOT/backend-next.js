@@ -1,9 +1,19 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { error, ok, parseBigIntParam, parseIntParam, readJson } from "@/lib/http";
+import {
+  corsOptions,
+  error,
+  ok,
+  parseBigIntParam,
+  parseIntParam,
+  readJson,
+  withCors,
+} from "@/lib/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+export { corsOptions as OPTIONS };
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,10 +35,10 @@ export async function GET(request: NextRequest) {
       take: 100,
     });
 
-    return ok(conversations);
+    return withCors(ok(conversations), request);
   } catch (err) {
     console.error("GET /api/telegram/conversations", err);
-    return error("Failed to fetch telegram conversations", 500);
+    return withCors(error("Failed to fetch telegram conversations", 500), request);
   }
 }
 
@@ -50,7 +60,8 @@ export async function POST(request: NextRequest) {
         : typeof rawChat === "number"
           ? BigInt(rawChat)
           : null;
-    if (chatId === null) return error("telegramChatId is required", 400);
+    if (chatId === null)
+      return withCors(error("telegramChatId is required", 400), request);
 
     const conversation = await prisma.telegramConversation.create({
       data: {
@@ -63,9 +74,12 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return ok(conversation, { status: 201 });
+    return withCors(ok(conversation, { status: 201 }), request);
   } catch (err) {
     console.error("POST /api/telegram/conversations", err);
-    return error("Failed to create telegram conversation", 500);
+    return withCors(
+      error("Failed to create telegram conversation", 500),
+      request,
+    );
   }
 }

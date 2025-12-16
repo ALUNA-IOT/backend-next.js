@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { getMongoDb } from "@/lib/mongo";
-import { error, ok, parseIntParam } from "@/lib/http";
+import { corsOptions, error, ok, parseIntParam, withCors } from "@/lib/http";
 import type { AutomationLog } from "@/types/mongo";
 
 export const runtime = "nodejs";
@@ -13,6 +13,8 @@ const parseDate = (value?: string | null): Date | null => {
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? null : d;
 };
+
+export { corsOptions as OPTIONS };
 
 export async function GET(request: NextRequest) {
   try {
@@ -44,10 +46,10 @@ export async function GET(request: NextRequest) {
       .limit(safeLimit)
       .toArray();
 
-    return ok(docs);
+    return withCors(ok(docs), request);
   } catch (err) {
     console.error("GET /api/mongo/logs", err);
-    return error("Failed to fetch automation logs", 500);
+    return withCors(error("Failed to fetch automation logs", 500), request);
   }
 }
 
@@ -55,11 +57,11 @@ export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as AutomationLog;
     if (!body?.event) {
-      return error("event is required", 400);
+      return withCors(error("event is required", 400), request);
     }
     const date = body.date ? new Date(body.date) : new Date();
     if (Number.isNaN(date.getTime())) {
-      return error("date is invalid", 400);
+      return withCors(error("date is invalid", 400), request);
     }
 
     const doc: AutomationLog = {
@@ -69,9 +71,12 @@ export async function POST(request: NextRequest) {
 
     const db = await getMongoDb();
     const result = await db.collection<AutomationLog>(collectionName).insertOne(doc);
-    return ok({ insertedId: result.insertedId }, { status: 201 });
+    return withCors(
+      ok({ insertedId: result.insertedId }, { status: 201 }),
+      request,
+    );
   } catch (err) {
     console.error("POST /api/mongo/logs", err);
-    return error("Failed to insert automation log", 500);
+    return withCors(error("Failed to insert automation log", 500), request);
   }
 }

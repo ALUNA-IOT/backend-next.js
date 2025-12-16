@@ -1,11 +1,22 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { error, ok, parseIntParam, readJson } from "@/lib/http";
+import {
+  corsOptions,
+  error,
+  ok,
+  parseIntParam,
+  readJson,
+  withCors,
+} from "@/lib/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type ActuatorParams = { actuatorId: string };
+
+export function OPTIONS(request: NextRequest) {
+  return corsOptions(request);
+}
 
 export async function GET(
   request: NextRequest,
@@ -13,7 +24,8 @@ export async function GET(
 ) {
   const { actuatorId: rawActuatorId } = await context.params;
   const actuatorId = parseIntParam(rawActuatorId);
-  if (actuatorId === null) return error("Invalid actuatorId", 400);
+  if (actuatorId === null)
+    return withCors(error("Invalid actuatorId", 400), request);
 
   try {
     const url = new URL(request.url);
@@ -26,10 +38,10 @@ export async function GET(
       take: safeLimit,
     });
 
-    return ok(states);
+    return withCors(ok(states), request);
   } catch (err) {
     console.error("GET /api/actuators/[actuatorId]/state", err);
-    return error("Failed to fetch actuator state", 500);
+    return withCors(error("Failed to fetch actuator state", 500), request);
   }
 }
 
@@ -39,7 +51,8 @@ export async function POST(
 ) {
   const { actuatorId: rawActuatorId } = await context.params;
   const actuatorId = parseIntParam(rawActuatorId);
-  if (actuatorId === null) return error("Invalid actuatorId", 400);
+  if (actuatorId === null)
+    return withCors(error("Invalid actuatorId", 400), request);
 
   try {
     const body = await readJson<{
@@ -50,10 +63,11 @@ export async function POST(
     }>(request);
 
     const state = body.state?.trim();
-    if (!state) return error("state is required", 400);
+    if (!state) return withCors(error("state is required", 400), request);
 
     const ts = body.timestamp ? new Date(body.timestamp) : new Date();
-    if (Number.isNaN(ts.getTime())) return error("timestamp is invalid", 400);
+    if (Number.isNaN(ts.getTime()))
+      return withCors(error("timestamp is invalid", 400), request);
 
     const created = await prisma.actuatorState.create({
       data: {
@@ -65,9 +79,9 @@ export async function POST(
       },
     });
 
-    return ok(created, { status: 201 });
+    return withCors(ok(created, { status: 201 }), request);
   } catch (err) {
     console.error("POST /api/actuators/[actuatorId]/state", err);
-    return error("Failed to create actuator state", 500);
+    return withCors(error("Failed to create actuator state", 500), request);
   }
 }

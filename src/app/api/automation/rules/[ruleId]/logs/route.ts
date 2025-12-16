@@ -1,19 +1,28 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { error, ok, parseIntParam, readJson } from "@/lib/http";
+import {
+  corsOptions,
+  error,
+  ok,
+  parseIntParam,
+  readJson,
+  withCors,
+} from "@/lib/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type RuleParams = { ruleId: string };
 
+export { corsOptions as OPTIONS };
+
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   context: { params: Promise<RuleParams> },
 ) {
   const { ruleId: rawRuleId } = await context.params;
   const ruleId = parseIntParam(rawRuleId);
-  if (ruleId === null) return error("Invalid ruleId", 400);
+  if (ruleId === null) return withCors(error("Invalid ruleId", 400), request);
 
   try {
     const logs = await prisma.automationLog.findMany({
@@ -21,10 +30,10 @@ export async function GET(
       orderBy: { timestamp: "desc" },
       take: 200,
     });
-    return ok(logs);
+    return withCors(ok(logs), request);
   } catch (err) {
     console.error("GET /api/automation/rules/[ruleId]/logs", err);
-    return error("Failed to fetch automation logs", 500);
+    return withCors(error("Failed to fetch automation logs", 500), request);
   }
 }
 
@@ -34,7 +43,7 @@ export async function POST(
 ) {
   const { ruleId: rawRuleId } = await context.params;
   const ruleId = parseIntParam(rawRuleId);
-  if (ruleId === null) return error("Invalid ruleId", 400);
+  if (ruleId === null) return withCors(error("Invalid ruleId", 400), request);
 
   try {
     const body = await readJson<{ message?: string; timestamp?: string }>(
@@ -43,7 +52,7 @@ export async function POST(
     const message = body.message?.trim() || null;
     const timestamp = body.timestamp ? new Date(body.timestamp) : new Date();
     if (Number.isNaN(timestamp.getTime())) {
-      return error("timestamp is invalid", 400);
+      return withCors(error("timestamp is invalid", 400), request);
     }
 
     const log = await prisma.automationLog.create({
@@ -54,9 +63,9 @@ export async function POST(
       },
     });
 
-    return ok(log, { status: 201 });
+    return withCors(ok(log, { status: 201 }), request);
   } catch (err) {
     console.error("POST /api/automation/rules/[ruleId]/logs", err);
-    return error("Failed to create automation log", 500);
+    return withCors(error("Failed to create automation log", 500), request);
   }
 }

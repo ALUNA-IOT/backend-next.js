@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { getMongoDb } from "@/lib/mongo";
-import { error, ok, parseIntParam } from "@/lib/http";
+import { corsOptions, error, ok, parseIntParam, withCors } from "@/lib/http";
 import type { RawTelemetry } from "@/types/mongo";
 
 export const runtime = "nodejs";
@@ -13,6 +13,8 @@ const parseDate = (value?: string | null): Date | null => {
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? null : d;
 };
+
+export { corsOptions as OPTIONS };
 
 export async function GET(request: NextRequest) {
   try {
@@ -44,10 +46,10 @@ export async function GET(request: NextRequest) {
       .limit(safeLimit)
       .toArray();
 
-    return ok(docs);
+    return withCors(ok(docs), request);
   } catch (err) {
     console.error("GET /api/mongo/telemetry", err);
-    return error("Failed to fetch telemetry", 500);
+    return withCors(error("Failed to fetch telemetry", 500), request);
   }
 }
 
@@ -55,14 +57,14 @@ export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as RawTelemetry;
     if (!body?.metadata?.deviceId) {
-      return error("metadata.deviceId is required", 400);
+      return withCors(error("metadata.deviceId is required", 400), request);
     }
     if (typeof body.value !== "number") {
-      return error("value must be a number", 400);
+      return withCors(error("value must be a number", 400), request);
     }
     const timestamp = body.timestamp ? new Date(body.timestamp) : new Date();
     if (Number.isNaN(timestamp.getTime())) {
-      return error("timestamp is invalid", 400);
+      return withCors(error("timestamp is invalid", 400), request);
     }
 
     const doc: RawTelemetry = {
@@ -72,9 +74,12 @@ export async function POST(request: NextRequest) {
 
     const db = await getMongoDb();
     const result = await db.collection<RawTelemetry>(collectionName).insertOne(doc);
-    return ok({ insertedId: result.insertedId }, { status: 201 });
+    return withCors(
+      ok({ insertedId: result.insertedId }, { status: 201 }),
+      request,
+    );
   } catch (err) {
     console.error("POST /api/mongo/telemetry", err);
-    return error("Failed to insert telemetry", 500);
+    return withCors(error("Failed to insert telemetry", 500), request);
   }
 }

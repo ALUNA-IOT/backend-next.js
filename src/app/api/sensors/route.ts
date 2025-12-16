@@ -1,9 +1,18 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { error, ok, parseUUID, readJson } from "@/lib/http";
+import {
+  corsOptions,
+  error,
+  ok,
+  parseUUID,
+  readJson,
+  withCors,
+} from "@/lib/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+export { corsOptions as OPTIONS };
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,10 +31,10 @@ export async function GET(request: NextRequest) {
       take: 200,
     });
 
-    return ok(sensors);
+    return withCors(ok(sensors), request);
   } catch (err) {
     console.error("GET /api/sensors", err);
-    return error("Failed to fetch sensors", 500);
+    return withCors(error("Failed to fetch sensors", 500), request);
   }
 }
 
@@ -40,7 +49,8 @@ export async function POST(request: NextRequest) {
 
     const deviceId = body.deviceId ? parseUUID(body.deviceId) : null;
     const sensorType = body.sensorType?.trim();
-    if (!sensorType) return error("sensorType is required", 400);
+    if (!sensorType)
+      return withCors(error("sensorType is required", 400), request);
 
     const sensor = await prisma.sensor.create({
       data: {
@@ -51,9 +61,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return ok(sensor, { status: 201 });
+    return withCors(ok(sensor, { status: 201 }), request);
   } catch (err) {
     console.error("POST /api/sensors", err);
-    return error("Failed to create sensor", 500);
+    return withCors(error("Failed to create sensor", 500), request);
   }
 }

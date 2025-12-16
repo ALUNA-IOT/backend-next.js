@@ -1,11 +1,13 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { error, ok, readJson } from "@/lib/http";
+import { corsOptions, error, ok, readJson, withCors } from "@/lib/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export { corsOptions as OPTIONS };
+
+export async function GET(request: NextRequest) {
   try {
     const floors = await prisma.floor.findMany({
       include: {
@@ -21,10 +23,10 @@ export async function GET() {
       orderBy: { floorNumber: "asc" },
     });
 
-    return ok(floors);
+    return withCors(ok(floors), request);
   } catch (err) {
     console.error("GET /api/floors", err);
-    return error("Failed to fetch floors", 500);
+    return withCors(error("Failed to fetch floors", 500), request);
   }
 }
 
@@ -34,7 +36,10 @@ export async function POST(request: NextRequest) {
       request,
     );
     if (typeof body.floorNumber !== "number") {
-      return error("floorNumber is required and must be a number", 400);
+      return withCors(
+        error("floorNumber is required and must be a number", 400),
+        request,
+      );
     }
 
     const floor = await prisma.floor.create({
@@ -44,9 +49,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return ok(floor, { status: 201 });
+    return withCors(ok(floor, { status: 201 }), request);
   } catch (err) {
     console.error("POST /api/floors", err);
-    return error("Failed to create floor", 500);
+    return withCors(error("Failed to create floor", 500), request);
   }
 }

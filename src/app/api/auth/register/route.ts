@@ -1,25 +1,12 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import { error, ok, readJson } from "@/lib/http";
+import { corsOptions, error, ok, readJson, withCors } from "@/lib/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": process.env.CORS_ORIGIN ?? "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
-
-const withCors = (response: Response) => {
-  Object.entries(corsHeaders).forEach(([key, value]) =>
-    response.headers.set(key, value),
-  );
-  return response;
-};
-
-export async function OPTIONS() {
-  return withCors(new Response(null, { status: 204 }));
+export async function OPTIONS(request: Request) {
+  return corsOptions(request);
 }
 
 export async function POST(request: Request) {
@@ -37,11 +24,15 @@ export async function POST(request: Request) {
     const password = body.password ?? "";
 
     if (!fullName || !email || !password) {
-      return withCors(error("fullName, email and password are required", 400));
+      return withCors(
+        error("fullName, email and password are required", 400),
+        request,
+      );
     }
 
     const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) return withCors(error("User already exists", 409));
+    if (existing)
+      return withCors(error("User already exists", 409), request);
 
     const passwordHash = await bcrypt.hash(password, 10);
 
@@ -67,9 +58,10 @@ export async function POST(request: Request) {
         },
         { status: 201 },
       ),
+      request,
     );
   } catch (err) {
     console.error("POST /api/auth/register", err);
-    return withCors(error("Failed to register user", 500));
+    return withCors(error("Failed to register user", 500), request);
   }
 }

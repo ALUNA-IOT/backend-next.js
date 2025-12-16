@@ -1,9 +1,21 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { error, ok, parseIntParam, parseUUID, readJson } from "@/lib/http";
+import {
+  corsOptions,
+  error,
+  ok,
+  parseIntParam,
+  parseUUID,
+  readJson,
+  withCors,
+} from "@/lib/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+export function OPTIONS(request: NextRequest) {
+  return corsOptions(request);
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,10 +37,10 @@ export async function GET(request: NextRequest) {
       take: 200,
     });
 
-    return ok(actuators);
+    return withCors(ok(actuators), request);
   } catch (err) {
     console.error("GET /api/actuators", err);
-    return error("Failed to fetch actuators", 500);
+    return withCors(error("Failed to fetch actuators", 500), request);
   }
 }
 
@@ -46,9 +58,13 @@ export async function POST(request: NextRequest) {
     }>(request);
 
     const actuatorType = body.actuatorType?.trim();
-    if (!actuatorType) return error("actuatorType is required", 400);
+    if (!actuatorType)
+      return withCors(error("actuatorType is required", 400), request);
     if (typeof body.channel !== "number") {
-      return error("channel is required and must be a number", 400);
+      return withCors(
+        error("channel is required and must be a number", 400),
+        request,
+      );
     }
 
     const deviceId = body.deviceId ? parseUUID(body.deviceId) : null;
@@ -66,9 +82,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return ok(actuator, { status: 201 });
+    return withCors(ok(actuator, { status: 201 }), request);
   } catch (err) {
     console.error("POST /api/actuators", err);
-    return error("Failed to create actuator", 500);
+    return withCors(error("Failed to create actuator", 500), request);
   }
 }

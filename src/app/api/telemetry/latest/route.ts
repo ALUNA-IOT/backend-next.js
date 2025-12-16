@@ -1,9 +1,18 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { error, ok, parseIntParam, parseUUID } from "@/lib/http";
+import {
+  corsOptions,
+  error,
+  ok,
+  parseIntParam,
+  parseUUID,
+  withCors,
+} from "@/lib/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+export { corsOptions as OPTIONS };
 
 export async function GET(request: NextRequest) {
   try {
@@ -45,9 +54,9 @@ export async function GET(request: NextRequest) {
       latest: sensor.telemetry[0] ?? null,
     }));
 
-    return ok(payload);
+    return withCors(ok(payload), request);
   } catch (err) {
     console.error("GET /api/telemetry/latest", err);
-    return error("Failed to fetch telemetry", 500);
+    return withCors(error("Failed to fetch telemetry", 500), request);
   }
 }

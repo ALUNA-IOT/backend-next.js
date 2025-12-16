@@ -1,29 +1,39 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { error, ok, parseIntParam, readJson } from "@/lib/http";
+import {
+  corsOptions,
+  error,
+  ok,
+  parseIntParam,
+  readJson,
+  withCors,
+} from "@/lib/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type ConversationParams = { conversationId: string };
 
+export { corsOptions as OPTIONS };
+
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   context: { params: Promise<ConversationParams> },
 ) {
   const { conversationId: rawConversationId } = await context.params;
   const conversationId = parseIntParam(rawConversationId);
-  if (conversationId === null) return error("Invalid conversationId", 400);
+  if (conversationId === null)
+    return withCors(error("Invalid conversationId", 400), request);
 
   try {
     const context = await prisma.telegramContext.findUnique({
       where: { conversationId },
     });
-    if (!context) return error("Context not found", 404);
-    return ok(context);
+    if (!context) return withCors(error("Context not found", 404), request);
+    return withCors(ok(context), request);
   } catch (err) {
     console.error("GET /api/telegram/context/[conversationId]", err);
-    return error("Failed to fetch telegram context", 500);
+    return withCors(error("Failed to fetch telegram context", 500), request);
   }
 }
 
@@ -33,7 +43,8 @@ export async function POST(
 ) {
   const { conversationId: rawConversationId } = await context.params;
   const conversationId = parseIntParam(rawConversationId);
-  if (conversationId === null) return error("Invalid conversationId", 400);
+  if (conversationId === null)
+    return withCors(error("Invalid conversationId", 400), request);
 
   try {
     const body = await readJson<{
@@ -58,9 +69,9 @@ export async function POST(
       },
     });
 
-    return ok(context);
+    return withCors(ok(context), request);
   } catch (err) {
     console.error("POST /api/telegram/context/[conversationId]", err);
-    return error("Failed to upsert telegram context", 500);
+    return withCors(error("Failed to upsert telegram context", 500), request);
   }
 }

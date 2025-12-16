@@ -1,9 +1,18 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { error, ok, parseIntParam, readJson } from "@/lib/http";
+import {
+  corsOptions,
+  error,
+  ok,
+  parseIntParam,
+  readJson,
+  withCors,
+} from "@/lib/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+export { corsOptions as OPTIONS };
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,10 +32,10 @@ export async function GET(request: NextRequest) {
       take: 200,
     });
 
-    return ok(reservations);
+    return withCors(ok(reservations), request);
   } catch (err) {
     console.error("GET /api/reservations", err);
-    return error("Failed to fetch reservations", 500);
+    return withCors(error("Failed to fetch reservations", 500), request);
   }
 }
 
@@ -43,16 +52,22 @@ export async function POST(request: NextRequest) {
 
     const zoneId = body.zoneId;
     if (typeof zoneId !== "number") {
-      return error("zoneId is required", 400);
+      return withCors(error("zoneId is required", 400), request);
     }
 
     const start = body.startDatetime ? new Date(body.startDatetime) : null;
     const end = body.endDatetime ? new Date(body.endDatetime) : null;
     if (!start || Number.isNaN(start.getTime())) {
-      return error("startDatetime is required and must be valid", 400);
+      return withCors(
+        error("startDatetime is required and must be valid", 400),
+        request,
+      );
     }
     if (!end || Number.isNaN(end.getTime())) {
-      return error("endDatetime is required and must be valid", 400);
+      return withCors(
+        error("endDatetime is required and must be valid", 400),
+        request,
+      );
     }
 
     const reservation = await prisma.reservation.create({
@@ -67,9 +82,9 @@ export async function POST(request: NextRequest) {
       include: { user: true, zone: true },
     });
 
-    return ok(reservation, { status: 201 });
+    return withCors(ok(reservation, { status: 201 }), request);
   } catch (err) {
     console.error("POST /api/reservations", err);
-    return error("Failed to create reservation", 500);
+    return withCors(error("Failed to create reservation", 500), request);
   }
 }

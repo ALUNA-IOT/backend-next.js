@@ -1,9 +1,18 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { error, ok, parseIntParam, readJson } from "@/lib/http";
+import {
+  corsOptions,
+  error,
+  ok,
+  parseIntParam,
+  readJson,
+  withCors,
+} from "@/lib/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+export { corsOptions as OPTIONS };
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,10 +30,10 @@ export async function GET(request: NextRequest) {
       take: safeLimit,
     });
 
-    return ok(telemetry);
+    return withCors(ok(telemetry), request);
   } catch (err) {
     console.error("GET /api/telemetry", err);
-    return error("Failed to fetch telemetry", 500);
+    return withCors(error("Failed to fetch telemetry", 500), request);
   }
 }
 
@@ -37,15 +46,18 @@ export async function POST(request: NextRequest) {
     }>(request);
 
     if (typeof body.sensorId !== "number") {
-      return error("sensorId is required", 400);
+      return withCors(error("sensorId is required", 400), request);
     }
     if (typeof body.value !== "number") {
-      return error("value is required and must be a number", 400);
+      return withCors(
+        error("value is required and must be a number", 400),
+        request,
+      );
     }
 
     const timestamp = body.timestamp ? new Date(body.timestamp) : new Date();
     if (Number.isNaN(timestamp.getTime())) {
-      return error("timestamp is invalid", 400);
+      return withCors(error("timestamp is invalid", 400), request);
     }
 
     const telemetry = await prisma.telemetry.create({
@@ -56,9 +68,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return ok(telemetry, { status: 201 });
+    return withCors(ok(telemetry, { status: 201 }), request);
   } catch (err) {
     console.error("POST /api/telemetry", err);
-    return error("Failed to create telemetry", 500);
+    return withCors(error("Failed to create telemetry", 500), request);
   }
 }

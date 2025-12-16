@@ -1,9 +1,18 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { error, ok, parseIntParam, readJson } from "@/lib/http";
+import {
+  corsOptions,
+  error,
+  ok,
+  parseIntParam,
+  readJson,
+  withCors,
+} from "@/lib/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+export { corsOptions as OPTIONS };
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,10 +29,10 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    return ok(users);
+    return withCors(ok(users), request);
   } catch (err) {
     console.error("GET /api/users", err);
-    return error("Failed to fetch users", 500);
+    return withCors(error("Failed to fetch users", 500), request);
   }
 }
 
@@ -43,7 +52,10 @@ export async function POST(request: NextRequest) {
     const passwordHash = body.passwordHash?.trim();
 
     if (!fullName || !email || !passwordHash) {
-      return error("fullName, email and passwordHash are required", 400);
+      return withCors(
+        error("fullName, email and passwordHash are required", 400),
+        request,
+      );
     }
 
     const user = await prisma.user.create({
@@ -58,9 +70,9 @@ export async function POST(request: NextRequest) {
       include: { role: true },
     });
 
-    return ok(user, { status: 201 });
+    return withCors(ok(user, { status: 201 }), request);
   } catch (err) {
     console.error("POST /api/users", err);
-    return error("Failed to create user", 500);
+    return withCors(error("Failed to create user", 500), request);
   }
 }

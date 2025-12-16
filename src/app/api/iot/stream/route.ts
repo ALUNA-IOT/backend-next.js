@@ -1,8 +1,11 @@
 import type { NextRequest } from "next/server";
+import { corsOptions, withCors } from "@/lib/http";
 import { onAck, onTelemetry } from "@/lib/mqtt";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+export { corsOptions as OPTIONS };
 
 export async function GET(request: NextRequest) {
   const encoder = new TextEncoder();
@@ -52,11 +55,14 @@ export async function GET(request: NextRequest) {
     },
   });
 
-  return new Response(stream, {
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache, no-transform",
-      Connection: "keep-alive",
-    },
-  });
+  return withCors(
+    new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache, no-transform",
+        Connection: "keep-alive",
+      },
+    }),
+    request,
+  );
 }

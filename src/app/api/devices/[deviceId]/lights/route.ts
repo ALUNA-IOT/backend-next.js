@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { corsOptions, withCors } from "@/lib/http";
 import { publishCommand } from "@/lib/mqtt";
 
 export const runtime = "nodejs";
@@ -10,6 +11,8 @@ type LightBody = {
   value?: string;
 };
 
+export { corsOptions as OPTIONS };
+
 export async function POST(
   request: NextRequest,
   context: { params: Promise<RouteParams> },
@@ -20,17 +23,20 @@ export async function POST(
   try {
     body = (await request.json()) as LightBody;
   } catch {
-    return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+    return withCors(
+      Response.json({ error: "Invalid JSON body" }, { status: 400 }),
+      request,
+    );
   }
 
   if (body?.value !== "ON" && body?.value !== "OFF") {
-    return Response.json(
-      { error: 'value must be "ON" or "OFF"' },
-      { status: 400 },
+    return withCors(
+      Response.json({ error: 'value must be "ON" or "OFF"' }, { status: 400 }),
+      request,
     );
   }
 
   const { requestId } = await publishCommand(deviceId, "LIGHT_SET", body.value);
 
-  return Response.json({ ok: true, requestId });
+  return withCors(Response.json({ ok: true, requestId }), request);
 }

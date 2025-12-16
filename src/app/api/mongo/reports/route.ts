@@ -1,12 +1,14 @@
 import { NextRequest } from "next/server";
 import { getMongoDb } from "@/lib/mongo";
-import { error, ok, parseIntParam } from "@/lib/http";
+import { corsOptions, error, ok, parseIntParam, withCors } from "@/lib/http";
 import type { GeneratedReport } from "@/types/mongo";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const collectionName = "generated_reports";
+
+export { corsOptions as OPTIONS };
 
 export async function GET(request: NextRequest) {
   try {
@@ -30,21 +32,21 @@ export async function GET(request: NextRequest) {
       .limit(safeLimit)
       .toArray();
 
-    return ok(docs);
+    return withCors(ok(docs), request);
   } catch (err) {
     console.error("GET /api/mongo/reports", err);
-    return error("Failed to fetch reports", 500);
+    return withCors(error("Failed to fetch reports", 500), request);
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as GeneratedReport;
-    if (!body?.type) return error("type is required", 400);
+    if (!body?.type) return withCors(error("type is required", 400), request);
 
     const createdAt = body.createdAt ? new Date(body.createdAt) : new Date();
     if (Number.isNaN(createdAt.getTime())) {
-      return error("createdAt is invalid", 400);
+      return withCors(error("createdAt is invalid", 400), request);
     }
 
     const doc: GeneratedReport = {
@@ -57,9 +59,12 @@ export async function POST(request: NextRequest) {
       .collection<GeneratedReport>(collectionName)
       .insertOne(doc);
 
-    return ok({ insertedId: result.insertedId }, { status: 201 });
+    return withCors(
+      ok({ insertedId: result.insertedId }, { status: 201 }),
+      request,
+    );
   } catch (err) {
     console.error("POST /api/mongo/reports", err);
-    return error("Failed to insert report", 500);
+    return withCors(error("Failed to insert report", 500), request);
   }
 }

@@ -1,9 +1,20 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { error, ok, parseIntParam, readJson } from "@/lib/http";
+import {
+  corsOptions,
+  error,
+  ok,
+  parseIntParam,
+  readJson,
+  withCors,
+} from "@/lib/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+export function OPTIONS(request: NextRequest) {
+  return corsOptions(request);
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,10 +31,10 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    return ok(rules);
+    return withCors(ok(rules), request);
   } catch (err) {
     console.error("GET /api/automation/rules", err);
-    return error("Failed to fetch automation rules", 500);
+    return withCors(error("Failed to fetch automation rules", 500), request);
   }
 }
 
@@ -42,7 +53,10 @@ export async function POST(request: NextRequest) {
     const condition = body.condition?.trim();
     const action = body.action?.trim();
     if (!ruleType || !condition || !action) {
-      return error("ruleType, condition and action are required", 400);
+      return withCors(
+        error("ruleType, condition and action are required", 400),
+        request,
+      );
     }
 
     const rule = await prisma.automationRule.create({
@@ -56,9 +70,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return ok(rule, { status: 201 });
+    return withCors(ok(rule, { status: 201 }), request);
   } catch (err) {
     console.error("POST /api/automation/rules", err);
-    return error("Failed to create automation rule", 500);
+    return withCors(error("Failed to create automation rule", 500), request);
   }
 }

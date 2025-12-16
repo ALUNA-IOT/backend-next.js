@@ -1,11 +1,20 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { error, ok, parseIntParam, parseUUID } from "@/lib/http";
+import {
+  corsOptions,
+  error,
+  ok,
+  parseIntParam,
+  parseUUID,
+  withCors,
+} from "@/lib/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type DeviceParams = { deviceId: string };
+
+export { corsOptions as OPTIONS };
 
 export async function GET(
   request: NextRequest,
@@ -13,7 +22,7 @@ export async function GET(
 ) {
   const { deviceId: rawDeviceId } = await context.params;
   const deviceId = parseUUID(rawDeviceId);
-  if (!deviceId) return error("Invalid deviceId", 400);
+  if (!deviceId) return withCors(error("Invalid deviceId", 400), request);
 
   try {
     const url = new URL(request.url);
@@ -35,9 +44,9 @@ export async function GET(
       take: safeLimit,
     });
 
-    return ok(telemetry);
+    return withCors(ok(telemetry), request);
   } catch (err) {
     console.error("GET /api/devices/[deviceId]/telemetry", err);
-    return error("Failed to fetch telemetry", 500);
+    return withCors(error("Failed to fetch telemetry", 500), request);
   }
 }

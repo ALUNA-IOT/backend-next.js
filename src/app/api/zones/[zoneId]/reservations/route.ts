@@ -1,19 +1,28 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { error, ok, parseIntParam, readJson } from "@/lib/http";
+import {
+  corsOptions,
+  error,
+  ok,
+  parseIntParam,
+  readJson,
+  withCors,
+} from "@/lib/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type ZoneParams = { zoneId: string };
 
+export { corsOptions as OPTIONS };
+
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   context: { params: Promise<ZoneParams> },
 ) {
   const { zoneId: rawZoneId } = await context.params;
   const zoneId = parseIntParam(rawZoneId);
-  if (zoneId === null) return error("Invalid zoneId", 400);
+  if (zoneId === null) return withCors(error("Invalid zoneId", 400), request);
 
   try {
     const reservations = await prisma.reservation.findMany({
@@ -21,10 +30,10 @@ export async function GET(
       include: { user: true },
       orderBy: { startDatetime: "asc" },
     });
-    return ok(reservations);
+    return withCors(ok(reservations), request);
   } catch (err) {
     console.error("GET /api/zones/[zoneId]/reservations", err);
-    return error("Failed to fetch reservations", 500);
+    return withCors(error("Failed to fetch reservations", 500), request);
   }
 }
 
@@ -34,7 +43,7 @@ export async function POST(
 ) {
   const { zoneId: rawZoneId } = await context.params;
   const zoneId = parseIntParam(rawZoneId);
-  if (zoneId === null) return error("Invalid zoneId", 400);
+  if (zoneId === null) return withCors(error("Invalid zoneId", 400), request);
 
   try {
     const body = await readJson<{
@@ -48,10 +57,16 @@ export async function POST(
     const start = body.startDatetime ? new Date(body.startDatetime) : null;
     const end = body.endDatetime ? new Date(body.endDatetime) : null;
     if (!start || Number.isNaN(start.getTime())) {
-      return error("startDatetime is required and must be valid", 400);
+      return withCors(
+        error("startDatetime is required and must be valid", 400),
+        request,
+      );
     }
     if (!end || Number.isNaN(end.getTime())) {
-      return error("endDatetime is required and must be valid", 400);
+      return withCors(
+        error("endDatetime is required and must be valid", 400),
+        request,
+      );
     }
 
     const reservation = await prisma.reservation.create({
@@ -66,9 +81,9 @@ export async function POST(
       include: { user: true },
     });
 
-    return ok(reservation, { status: 201 });
+    return withCors(ok(reservation, { status: 201 }), request);
   } catch (err) {
     console.error("POST /api/zones/[zoneId]/reservations", err);
-    return error("Failed to create reservation", 500);
+    return withCors(error("Failed to create reservation", 500), request);
   }
 }

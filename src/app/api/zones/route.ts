@@ -1,9 +1,18 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { error, ok, parseIntParam, readJson } from "@/lib/http";
+import {
+  corsOptions,
+  error,
+  ok,
+  parseIntParam,
+  readJson,
+  withCors,
+} from "@/lib/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+export { corsOptions as OPTIONS };
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,10 +30,10 @@ export async function GET(request: NextRequest) {
       orderBy: { zoneName: "asc" },
     });
 
-    return ok(zones);
+    return withCors(ok(zones), request);
   } catch (err) {
     console.error("GET /api/zones", err);
-    return error("Failed to fetch zones", 500);
+    return withCors(error("Failed to fetch zones", 500), request);
   }
 }
 
@@ -41,7 +50,7 @@ export async function POST(request: NextRequest) {
 
     const zoneName = body.zoneName?.trim();
     if (!zoneName) {
-      return error("zoneName is required", 400);
+      return withCors(error("zoneName is required", 400), request);
     }
 
     const zone = await prisma.zone.create({
@@ -58,9 +67,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return ok(zone, { status: 201 });
+    return withCors(ok(zone, { status: 201 }), request);
   } catch (err) {
     console.error("POST /api/zones", err);
-    return error("Failed to create zone", 500);
+    return withCors(error("Failed to create zone", 500), request);
   }
 }

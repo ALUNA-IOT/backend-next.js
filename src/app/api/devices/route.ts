@@ -1,9 +1,19 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { error, ok, parseIntParam, parseUUID, readJson } from "@/lib/http";
+import {
+  corsOptions,
+  error,
+  ok,
+  parseIntParam,
+  parseUUID,
+  readJson,
+  withCors,
+} from "@/lib/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+export { corsOptions as OPTIONS };
 
 export async function GET(request: NextRequest) {
   try {
@@ -29,10 +39,10 @@ export async function GET(request: NextRequest) {
       take: 200,
     });
 
-    return ok(devices);
+    return withCors(ok(devices), request);
   } catch (err) {
     console.error("GET /api/devices", err);
-    return error("Failed to fetch devices", 500);
+    return withCors(error("Failed to fetch devices", 500), request);
   }
 }
 
@@ -51,7 +61,8 @@ export async function POST(request: NextRequest) {
     }>(request);
 
     const deviceName = body.deviceName?.trim();
-    if (!deviceName) return error("deviceName is required", 400);
+    if (!deviceName)
+      return withCors(error("deviceName is required", 400), request);
 
     const deviceId = parseUUID(body.deviceId ?? null);
 
@@ -69,9 +80,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return ok(device, { status: 201 });
+    return withCors(ok(device, { status: 201 }), request);
   } catch (err) {
     console.error("POST /api/devices", err);
-    return error("Failed to create device", 500);
+    return withCors(error("Failed to create device", 500), request);
   }
 }
