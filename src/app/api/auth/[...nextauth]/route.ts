@@ -4,8 +4,8 @@ import { authOptions } from "@/lib/auth";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const handler = (NextAuth as unknown as (options?: unknown) => unknown)(
-  authOptions,
-) as typeof NextAuth;
+// Type cast to bypass NextAuth overload typing issues in app router.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const handler = NextAuth(authOptions as any);
 
 export { handler as GET, handler as POST };

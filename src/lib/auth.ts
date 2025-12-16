@@ -1,14 +1,12 @@
-import type { Session } from "next-auth";
-import type { JWT } from "next-auth/jwt";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 
-type ExtendedToken = JWT & { id?: string; role?: string | null };
+type ExtendedToken = Record<string, unknown> & { id?: string; role?: string | null };
 
 export const authOptions = {
   session: {
-    strategy: "jwt",
+    strategy: "jwt" as const,
   },
   providers: [
     Credentials({
@@ -64,9 +62,17 @@ export const authOptions = {
       session,
       token,
     }: {
-      session: Session;
+      session: {
+        user?: {
+          id?: string;
+          name?: string | null;
+          email?: string | null;
+          role?: string | null;
+        };
+        [key: string]: unknown;
+      };
       token: ExtendedToken;
-    }): Promise<Session> {
+    }): Promise<typeof session> {
       if (session.user && token) {
         session.user.id = token.id ?? session.user.id;
         session.user.role = token.role ?? null;
