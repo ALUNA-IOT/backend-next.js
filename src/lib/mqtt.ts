@@ -319,14 +319,25 @@ const createMqttClient = (): MqttClient => {
   return client;
 };
 
-const getMqttClient = (): MqttClient => {
+const getMqttClient = (): MqttClient | null => {
+  if (!process.env.MQTT_URL) {
+    return null;
+  }
   if (!globalMqtt.mqttClient) {
     globalMqtt.mqttClient = createMqttClient();
   }
   return globalMqtt.mqttClient;
 };
 
-getMqttClient();
+if (process.env.MQTT_URL) {
+  try {
+    getMqttClient();
+  } catch (error) {
+    console.warn("[mqtt] Failed to init client at startup", error);
+  }
+} else {
+  console.warn("[mqtt] MQTT_URL not set; MQTT client will not start (build-safe)");
+}
 
 export const onTelemetry = (
   listener: TelemetryListener,
@@ -347,6 +358,9 @@ export const publishCommand = async (
   speed?: number,
 ): Promise<{ requestId: string }> => {
   const client = getMqttClient();
+  if (!client) {
+    throw new Error("MQTT_URL env var is required to publish MQTT commands");
+  }
   const qos = getQoS();
   const topic = COMMAND_TOPIC_TEMPLATE.replace("<deviceId>", deviceId);
 
