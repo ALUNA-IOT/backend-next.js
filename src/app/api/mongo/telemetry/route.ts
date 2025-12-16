@@ -31,9 +31,10 @@ export async function GET(request: NextRequest) {
     if (zone) filter["metadata.zone"] = zone;
     if (sensorType) filter["metadata.sensorType"] = sensorType;
     if (from || to) {
-      filter.timestamp = {};
-      if (from) filter.timestamp.$gte = from;
-      if (to) filter.timestamp.$lte = to;
+      const tsFilter: { $gte?: Date; $lte?: Date } = {};
+      if (from) tsFilter.$gte = from;
+      if (to) tsFilter.$lte = to;
+      filter.timestamp = tsFilter;
     }
 
     const docs = await db

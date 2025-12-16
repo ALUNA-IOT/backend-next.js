@@ -1,5 +1,7 @@
+import type { ObjectId } from "mongodb";
+
 export interface RawTelemetry {
-  _id?: unknown;
+  _id?: ObjectId;
   metadata: {
     deviceId: string;
     zone?: string;
@@ -12,7 +14,7 @@ export interface RawTelemetry {
 }
 
 export interface AutomationLog {
-  _id?: unknown;
+  _id?: ObjectId;
   event: string;
   affectedZone?: string;
   details?: Record<string, unknown>;
@@ -21,7 +23,7 @@ export interface AutomationLog {
 }
 
 export interface GeneratedReport {
-  _id?: unknown;
+  _id?: ObjectId;
   type: string;
   period?: string;
   zoneId?: number;

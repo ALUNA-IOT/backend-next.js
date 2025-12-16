@@ -30,9 +30,10 @@ export async function GET(request: NextRequest) {
     if (affectedZone) filter.affectedZone = affectedZone;
     if (status) filter.status = status;
     if (from || to) {
-      filter.date = {};
-      if (from) filter.date.$gte = from;
-      if (to) filter.date.$lte = to;
+      const dateFilter: { $gte?: Date; $lte?: Date } = {};
+      if (from) dateFilter.$gte = from;
+      if (to) dateFilter.$lte = to;
+      filter.date = dateFilter;
     }
 
     const db = await getMongoDb();

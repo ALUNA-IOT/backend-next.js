@@ -21,8 +21,6 @@ export const getMongoClient = async (): Promise<MongoClient> => {
     globalForMongo.mongoClient = new MongoClient(uri, {
       retryWrites: true,
     });
-  }
-  if (!globalForMongo.mongoClient.topology?.isConnected()) {
     await globalForMongo.mongoClient.connect();
   }
   return globalForMongo.mongoClient;
