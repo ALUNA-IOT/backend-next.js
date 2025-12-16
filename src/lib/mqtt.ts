@@ -332,25 +332,30 @@ const getMqttClient = (): MqttClient | null => {
   return globalMqtt.mqttClient;
 };
 
-if (process.env.MQTT_URL) {
-  try {
-    getMqttClient();
-  } catch (error) {
-    console.warn("[mqtt] Failed to init client at startup", error);
+const ensureMqttClient = () => {
+  if (!process.env.MQTT_URL) {
+    debugLog("MQTT_URL not set; skipping MQTT client init");
+    return null;
   }
-} else {
-  console.warn("[mqtt] MQTT_URL not set; MQTT client will not start (build-safe)");
-}
+  try {
+    return getMqttClient();
+  } catch (error) {
+    console.warn("[mqtt] Failed to init client", error);
+    return null;
+  }
+};
 
 export const onTelemetry = (
   listener: TelemetryListener,
 ): (() => void) => {
   telemetryListeners.add(listener);
+  ensureMqttClient();
   return () => telemetryListeners.delete(listener);
 };
 
 export const onAck = (listener: AckListener): (() => void) => {
   ackListeners.add(listener);
+  ensureMqttClient();
   return () => ackListeners.delete(listener);
 };
 
@@ -371,7 +376,7 @@ export const publishCommand = async (
   value: string,
   speed?: number,
 ): Promise<{ requestId: string }> => {
-  const client = getMqttClient();
+  const client = ensureMqttClient();
   if (!client) {
     throw new Error("MQTT_URL env var is required to publish MQTT commands");
   }
@@ -419,11 +424,14 @@ export const publishCommand = async (
   return { requestId };
 };
 
-export const stateSnapshot = () => ({
-  telemetry: mapToRecord(telemetryStore),
-  acks: mapToRecord(ackStore),
-  pending: mapToRecord(pendingCommands),
-});
+export const stateSnapshot = () => {
+  ensureMqttClient();
+  return {
+    telemetry: mapToRecord(telemetryStore),
+    acks: mapToRecord(ackStore),
+    pending: mapToRecord(pendingCommands),
+  };
+};
 
 const mapToRecord = <T>(map: Map<string, T>): Record<string, T> => {
   const record: Record<string, T> = {};
