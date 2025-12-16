@@ -6,21 +6,14 @@ const ALLOWED_ORIGINS = (process.env.CORS_ORIGIN ?? "*")
   .map((o) => o.trim())
   .filter(Boolean);
 
-const DEFAULT_HEADERS = "Content-Type, Authorization";
+const DEFAULT_HEADERS =
+  "Content-Type, Authorization, X-CSRF-Token, x-csrf-token, next-auth.csrf-token, next-auth.session-token, Cookie";
 const DEFAULT_METHODS = "GET,POST,PUT,PATCH,DELETE,OPTIONS";
 
-const resolveOrigin = (
-  origin: string | null,
-): { value: string; credentials: boolean } => {
-  // Permissive: refleja el origin si existe; si no, usa * o el primero definido
-  if (origin) {
-    return { value: origin, credentials: true };
-  }
-  if (ALLOWED_ORIGINS.includes("*")) {
-    return { value: "*", credentials: false };
-  }
-  const fallback = ALLOWED_ORIGINS[0] ?? "*";
-  return { value: fallback, credentials: fallback !== "*" };
+const resolveOrigin = (origin: string | null): string => {
+  if (origin) return origin;
+  if (ALLOWED_ORIGINS.includes("*")) return "*";
+  return ALLOWED_ORIGINS[0] ?? "*";
 };
 
 export function middleware(request: NextRequest) {
@@ -30,7 +23,7 @@ export function middleware(request: NextRequest) {
   const requestHeaders =
     request.headers.get("access-control-request-headers") ?? DEFAULT_HEADERS;
 
-  const { value: allowOrigin, credentials } = resolveOrigin(originHeader);
+  const allowOrigin = resolveOrigin(originHeader);
 
   const corsHeaders: Record<string, string> = {
     "Access-Control-Allow-Origin": allowOrigin,
@@ -39,9 +32,11 @@ export function middleware(request: NextRequest) {
     "Access-Control-Max-Age": "600",
   };
 
-  if (credentials) {
+  // Always allow credentials so NextAuth cookies work cross-origin when origin is reflected
+  if (allowOrigin !== "*") {
     corsHeaders["Access-Control-Allow-Credentials"] = "true";
   }
+  corsHeaders["Access-Control-Expose-Headers"] = requestHeaders;
 
   if (request.method === "OPTIONS") {
     return new NextResponse(null, {
