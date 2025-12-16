@@ -33,7 +33,7 @@ export const buildCorsHeaders = (request?: Request): Record<string, string> => {
   const requestHeaders =
     request?.headers.get("access-control-request-headers") ?? DEFAULT_HEADERS;
 
-  const allowOrigin = resolveOrigin(originHeader);
+  const allowOrigin = resolveOrigin(originHeader ?? null);
 
   const corsHeaders: Record<string, string> = {
     "Access-Control-Allow-Origin": allowOrigin,
