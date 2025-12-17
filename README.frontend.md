@@ -61,14 +61,20 @@ Backend endpoints exposed by the Next.js App Router. All routes are Node runtime
   - GET/POST `/api/telegram/context/:conversationId` (`POST` `{ activeFlow?, currentStep?, tempData? }`)
 - Mongo (Data Lake)
   - GET/POST `/api/mongo/telemetry`
-    - Filters: `deviceId`, `zone`, `sensorType`, `from`, `to`, `limit`
-    - Body: `{ metadata:{deviceId, zone?, sensorType?}, value:number, unit?, timestamp?, n8nExecutionId? }`
+    - Collection: `telemetry`
+    - Filters: `deviceId`, `from`, `to`, `limit`
+    - Body: `{ deviceId, relay: boolean, timestamp: number, temperature?: number, humidity?: number, button?: boolean, created?: ISO }`
   - GET/POST `/api/mongo/logs`
+    - Collection: `automation_logs`
     - Filters: `event`, `affectedZone`, `status`, `from`, `to`, `limit`
     - Body: `{ event, affectedZone?, details?, date?, status? }`
-  - GET/POST `/api/mongo/reports`
-    - Filters: `type`, `period`, `zoneId`, `limit`
-    - Body: `{ type, period?, zoneId?, summary?, dataPoints?, createdAt? }`
+  - GET `/api/mongo/reports`
+    - Collection: `reportes`
+    - Filters: `deviceId`, `from`, `to`, `limit`
+  - POST `/api/mongo/reports`
+    - Generates and stores energy report in `reportes` based on telemetry `relay` ON/OFF every fixed interval.
+    - Body: `{ deviceId?, from?: ISO, to?: ISO, intervalMinutes?: number (default 5), kwRating?: number (default 0.06), notes?: string }`
+    - Response: `{ insertedId, report: { reportId, createdAt, deviceId?, from, to, totalReadings, relayOnCount, relayOffCount, assumedIntervalMinutes, kwRating, energyKwh, onMinutes, offMinutes, notes } }`
 
 ## Auth
 - Sign in (credentials, NextAuth client):
