@@ -8,6 +8,8 @@ import {
   parseUUID,
   withCors,
 } from "@/lib/http";
+import { getMongoDb } from "@/lib/mongo";
+import type { TelemetryEntry } from "@/types/mongo";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,6 +39,37 @@ export async function GET(request: NextRequest) {
       take: 500,
     });
 
+    // Preload latest telemetry per device from Mongo as fallback when SQL has no rows
+    const deviceIds = Array.from(
+      new Set(sensors.map((s) => s.deviceId).filter(Boolean)),
+    ) as string[];
+    let mongoLatest: Record<string, TelemetryEntry> = {};
+
+    if (deviceIds.length) {
+      try {
+        const db = await getMongoDb();
+        const docs = await db
+          .collection<TelemetryEntry>("telemetry")
+          .aggregate([
+            { $match: { deviceId: { $in: deviceIds } } },
+            { $sort: { created: -1 } },
+            { $group: { _id: "$deviceId", doc: { $first: "$$ROOT" } } },
+          ])
+          .toArray();
+        mongoLatest = Object.fromEntries(
+          docs
+            .map((d) => d.doc)
+            .filter((d): d is TelemetryEntry => Boolean(d?.deviceId))
+            .map((d) => [d.deviceId, d]),
+        );
+      } catch (mongoErr) {
+        console.warn(
+          "[telemetry/latest] Mongo fallback unavailable",
+          (mongoErr as Error)?.message ?? mongoErr,
+        );
+      }
+    }
+
     const payload = sensors.map((sensor) => ({
       sensorId: sensor.id,
       sensorType: sensor.sensorType,
@@ -51,7 +84,9 @@ export async function GET(request: NextRequest) {
             floorNumber: sensor.device.zone?.floor?.floorNumber ?? null,
           }
         : null,
-      latest: sensor.telemetry[0] ?? null,
+      latest:
+        sensor.telemetry[0] ??
+        (sensor.deviceId ? mongoLatest[sensor.deviceId] ?? null : null),
     }));
 
     return withCors(ok(payload), request);
