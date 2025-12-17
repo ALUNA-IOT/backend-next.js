@@ -142,7 +142,7 @@ import axios from "axios";
 
 // Zones by floor
 const { data: zones } = await axios.get("/api/zones", { params: { floorId: 1 } });
-
+3
 // Create reservation
 await axios.post(`/api/zones/${zoneId}/reservations`, {
   userId: 1,
