@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { getMongoDb } from "@/lib/mongo";
-import { corsOptions, error, ok, withCors } from "@/lib/http";
+import { corsOptions, error, ok, parseIntParam, withCors } from "@/lib/http";
 import type { EnergyReport, TelemetryEntry } from "@/types/mongo";
 
 export const runtime = "nodejs";
